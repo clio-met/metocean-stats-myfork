@@ -1400,6 +1400,7 @@ def cca_profiles(data,var='current_speed_',month=None,percentile=None,return_per
         wcs=np.percentile(df_sel.to_numpy(),percentile,axis=0)
     if return_period is not None:
         # Calculate the return values for the specified return period for each level separately
+        wcs=np.full((len(levels)),np.nan)
         parameters=np.full((len(levels),3),np.nan) # shape, location, scale
         for i in range(len(levels)):
             if not(df_sel[list_col[i]].isnull().iloc[0]):
