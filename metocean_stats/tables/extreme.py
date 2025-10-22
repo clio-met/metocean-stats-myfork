@@ -140,9 +140,9 @@ def table_directional_joint_distribution_Hs_Tp_param(
 
     return df  
 
-def table_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],distribution='Weibull3P_MOM',method='default',threshold='default', units='m',output_file='monthly_extremes_weibull.csv'):
+def table_monthly_return_periods(data,var='hs',periods=[1, 10, 100, 10000],distribution='Weibull3P_MOM',method='default',threshold='default',units='m',event_duration='default',output_file='monthly_extremes_weibull.csv'):
     months = ['-','Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Year']
-    params, return_periods, threshold_values, num_events_per_year = stats.monthly_extremes(data=data, var=var, periods=periods, distribution=distribution, method=method, threshold=threshold)   
+    params, return_periods, threshold_values, num_events_per_year = stats.monthly_extremes(data=data, var=var, periods=periods, distribution=distribution, method=method, threshold=threshold, event_duration=event_duration)   
 
     # Initialize lists to store table data
     annual_prob = ['%'] + [np.round(100/12,2)] * 12 + [100.00]
@@ -173,8 +173,8 @@ def table_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],dis
     
     return df
 
-def table_directional_return_periods(data: pd.DataFrame, var='hs', var_dir='dir', periods=[1, 10, 100, 10000], distribution='Weibull3P_MOM', units='m',adjustment='NORSOK',method='default', threshold='default',output_file='directional_extremes_weibull.csv'):
-    params, return_periods, sector_prob,  threshold_values, num_events_per_year = stats.directional_extremes(data=data, var=var, var_dir=var_dir, periods=periods,distribution=distribution, adjustment=adjustment, method=method, threshold=threshold)    
+def table_directional_return_periods(data: pd.DataFrame, var='hs', var_dir='dir', periods=[1, 10, 100, 10000],distribution='Weibull3P_MOM',units='m',adjustment='NORSOK',method='default',threshold='default',event_duration='default',output_file='directional_extremes_weibull.csv'):
+    params, return_periods, sector_prob,  threshold_values, num_events_per_year = stats.directional_extremes(data=data, var=var, var_dir=var_dir, periods=periods,distribution=distribution, adjustment=adjustment, method=method, threshold=threshold, event_duration=event_duration)    
     dir = ['-'] + [str(angle) + '°' for angle in np.arange(0,360,30)] + ['Omni']
     # Initialize lists to store table data
     sector_prob = ['%'] + [round(value, 2) for value in sector_prob] + [100.00]
@@ -565,11 +565,11 @@ def table_wave_induced_current(ds, var_hs,var_tp,max_hs= 20, depth=200,ref_depth
     return df
 
 
-def table_profile_return_values(data,var=['W10','W50','W80','W100','W150'], z=[10, 50, 80, 100, 150], periods=[1, 10, 100, 10000],units = 'm/s' ,distribution='Weibull3P',method='default',threshold='default', output_file='RVE_wind_profile.csv'):
+def table_profile_return_values(data,var=['W10','W50','W80','W100','W150'], z=[10, 50, 80, 100, 150], periods=[1, 10, 100, 10000],units = 'm/s' ,distribution='Weibull3P',method='default',threshold='default', event_duration='default', prob='default',output_file='RVE_wind_profile.csv'):
     df = pd.DataFrame()
     df['z']= ['m'] + [str(num) for num in z] 
     for p in periods: 
-        df[f'Return period {p} [years]'] = [units] + [stats.RVE_ALL(data,var=var1,periods=p,distribution=distribution,method=method,threshold=threshold)[3].round(2) for var1 in var]
+        df[f'Return period {p} [years]'] = [units] + [stats.RVE_ALL(data,var=var1,periods=p,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration,prob=prob)[3].round(2) for var1 in var]
     
     if output_file:
         df.to_csv(output_file, index=False)  
@@ -640,9 +640,9 @@ def table_directional_Hmax_return_periods(ds, var_hs='HS', var_tp='TP', var_dir=
     
     return df
 
-def table_hs_for_rv_wind(data, var_wind='W10', var_hs='HS',periods=[1,10,100,10000],output_file='hs_for_rv_wind.csv'):
+def table_hs_for_rv_wind(data, var_wind='W10', var_hs='HS',periods=[1,10,100,10000],event_duration='default',output_file='hs_for_rv_wind.csv'):
     df = table_hs_for_given_wind(data, var_hs=var_hs,var_wind=var_wind, bin_width=2, max_wind=40, output_file=None)
-    shape, loc, scale, value = stats.RVE_ALL(data,var=var_wind,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default')
+    shape, loc, scale, value = stats.RVE_ALL(data,var=var_wind,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default',event_duration=event_duration,prob='annual')
     result_df = pd.DataFrame(value, columns=['U[m/s]'])
     result_df['Return period [years]'] = periods
     a_mean, b_mean, c_mean, d_mean = aux_funcs.fit_hs_wind_model(df.dropna()['U[m/s]'].values,df.dropna()['Hs(Mean-obs) [m]'].values) 
@@ -761,9 +761,9 @@ def table_current_for_given_hs(data: pd.DataFrame, var_curr: str,var_hs: str, bi
         result_df[['Hs[m]', 'Uc(P5-model) [m/s]','Uc(Mean-model) [m/s]','Uc(P95-model) [m/s]']].round(2).to_csv(output_file,index=False)
     return result_df
 
-def table_extreme_current_profile_rv(data: pd.DataFrame, var: str, z=[10, 20, 30], periods=[1,10,100], percentile=95, fitting_method='polynomial', fmt=".2f", output_file='table_extreme_current_profile_rv.csv'):
+def table_extreme_current_profile_rv(data: pd.DataFrame, var: str, z=[10, 20, 30], periods=[1,10,100], percentile=95, fitting_method='polynomial', event_duration='default', prob='annual', fmt=".2f", output_file='table_extreme_current_profile_rv.csv'):
     for period in periods:
-        df = table_profile_return_values(data=data, var=var, z=z, periods=periods, output_file=None)
+        df = table_profile_return_values(data=data, var=var, z=z, periods=periods, event_duration=event_duration, prob=prob, output_file=None)
         df[[f'{i}' for i in z]] = np.nan
         df.loc[0, [f'{i}' for i in z]] = df[f'Return period {period} [years]'][0] # add units
         
@@ -805,9 +805,9 @@ def table_extreme_current_profile_rv(data: pd.DataFrame, var: str, z=[10, 20, 30
                 print('File format is not supported')
     return df
 
-def table_current_for_rv_wind(data, var_curr='current_speed_0m', var_wind='W10',periods=[1,10],output_file='Uc_for_rv_wind.csv'):
+def table_current_for_rv_wind(data, var_curr='current_speed_0m', var_wind='W10',periods=[1,10],event_duration='default',prob='annual',output_file='Uc_for_rv_wind.csv'):
     df = table_current_for_given_wind(data=data, var_curr=var_curr,var_wind=var_wind, bin_width=2, max_wind=40, output_file=None)
-    shape, loc, scale, value = stats.RVE_ALL(data,var=var_wind,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default')
+    shape, loc, scale, value = stats.RVE_ALL(data,var=var_wind,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default',event_duration=event_duration,prob=prob)
     result_df = pd.DataFrame(value, columns=['U[m/s]'])
     result_df['Return period [years]'] = periods
     a_mean, b_mean, c_mean, d_mean = aux_funcs.fit_Uc_wind_model(df.dropna()['U[m/s]'].values,df.dropna()['Uc(Mean-obs) [m/s]'].values) 
@@ -824,9 +824,9 @@ def table_current_for_rv_wind(data, var_curr='current_speed_0m', var_wind='W10',
     
     return result_df
 
-def table_current_for_rv_hs(data, var_curr='current_speed_0m', var_hs='HS',periods=[1,10],output_file='Uc_for_rv_hs.csv'):
+def table_current_for_rv_hs(data, var_curr='current_speed_0m', var_hs='HS',periods=[1,10],event_duration='default',prob='annual',output_file='Uc_for_rv_hs.csv'):
     df = table_current_for_given_hs(data=data, var_curr=var_curr,var_hs=var_hs, bin_width=2, max_hs=20, output_file=None)
-    shape, loc, scale, value = stats.RVE_ALL(data,var=var_hs,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default')
+    shape, loc, scale, value = stats.RVE_ALL(data,var=var_hs,periods=periods,distribution='Weibull3P_MOM',method='default',threshold='default',event_duration=event_duration,prob=prob)
     result_df = pd.DataFrame(value, columns=['Hs[m]'])
     result_df['Return period [years]'] = periods
     a_mean, b_mean, c_mean = aux_funcs.fit_Uc_Hs_model(df.dropna()['Hs[m]'].values,df.dropna()['Uc(Mean-obs) [m/s]'].values) 
@@ -938,7 +938,7 @@ def table_storm_surge_for_rv_hs(data: pd.DataFrame, var_hs='HS',var_tp='TP',var_
     return df
 
 
-def table_cca_profiles(data,var='current_speed_',month=None,percentile=None,return_period=None,distribution='GUM',method='default',threshold='default',output_file='table_cca_profiles.csv'):
+def table_cca_profiles(data,var='current_speed_',month=None,percentile=None,return_period=None,distribution='GUM',method='default',threshold='default',event_duration='default',output_file='table_cca_profiles.csv'):
     """
     This function returns a table containing the CCA profiles for a specific percentile or return period
     data: dataframe
@@ -956,8 +956,12 @@ def table_cca_profiles(data,var='current_speed_',month=None,percentile=None,retu
         raise ValueError('Please specify either a percentile or a return period in years')
     if not(percentile is None):
         lev,woca,cca=stats.cca_profiles(data,var=var,month=month,percentile=percentile)
+    if month==None:
+        prob='annual'
+    else:
+        prob='monthly'
     if not(return_period is None):
-        lev,woca,cca=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold)
+        lev,woca,cca=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration,prob=prob)
     list_ind=[]
     columns=['Depth [m]']+[d for d in lev]+['Worst case']
     table = np.zeros((len(lev),len(lev)+2))

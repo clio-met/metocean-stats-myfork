@@ -475,13 +475,17 @@ def plot_threshold_sensitivity(df, output_file):
 
     return fig
 
-def plot_RVE_ALL(dataframe,var='hs',periods=np.array([1,10,100,1000]),distribution='Weibull3P',method='default',threshold='default'):
+def plot_RVE_ALL(dataframe,var='hs',periods=np.array([1,10,100,1000]),distribution='Weibull3P',method='default',threshold='default',event_duration='default',prob='annual'):
     
     # data : dataframe, should be daily or hourly
     # period: a value, or an array return periods =np.array([1,10,100,10000],dtype=float)
     # distribution: 'EXP', 'GEV', 'GUM', 'LoNo', 'Weibull2P' or 'Weibull3P'
     # method: 'default', 'AM' or 'POT'
-    # threshold='default'(min anual maxima), or a value 
+    # threshold='default'(min anual maxima), or a value
+    # event_duration: string 'default' or float (in hours)
+    #     'default' uses the data timestep as event duration
+    # prob: string 'annual' or 'monthly'
+    #     'annual' means prob=1, 'monthly' means prob=1/12
 
     it_selected_max = dataframe.groupby(dataframe.index.year)[var].idxmax().values
     
@@ -511,12 +515,20 @@ def plot_RVE_ALL(dataframe,var='hs',periods=np.array([1,10,100,1000]),distributi
         if period == 1 : 
             period = 1.5873
             
-    # duration = (df.index[-1]-df.index[0]).days + 1 
-    # length_data = data.shape[0]
-    #interval = duration*24/length_data # in hours 
-    interval = ((df.index[-1]-df.index[0]).days + 1)*24/df.shape[0] # in hours 
-    period = period*365.2422*24/interval # years is converted to K-th
+    if event_duration=='default':
+        interval=(df.index[1]-df.index[0]).seconds/3600  # in hours
+    else:
+        interval=event_duration # in hours
+
+    if prob=='annual':
+        pp=1.0
+    elif prob=='monthly':
+        pp=1.0/12.0
+    else:
+        raise ValueError('Problem: prob is neither annual nor monthly')
     
+    period = pp*period*(365.2422*24)/interval
+
     # Fit a distribution to the data
     if distribution == 'EXP' : 
         loc, scale = st.expon.fit(data)
@@ -916,8 +928,8 @@ def plot_bounds(file='NORA10_6036N_0336E.1958-01-01.2022-12-31.txt'):
     
     return 
 
-def plot_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],distribution='Weibull3P_MOM',method='default',threshold='default', units='m',output_file='monthly_extremes_weibull.png'):
-    df = tables.table_monthly_return_periods(data=data,var=var, periods=periods,distribution=distribution,method=method,threshold=threshold, units=units, output_file=None)
+def plot_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],distribution='Weibull3P_MOM',method='default',threshold='default',event_duration='default', units='m',output_file='monthly_extremes_weibull.png'):
+    df = tables.table_monthly_return_periods(data=data,var=var, periods=periods,distribution=distribution,method=method,threshold=threshold, units=units, event_duration=event_duration, output_file=None)
     fig, ax = plt.subplots()
     cmap = plt.get_cmap("viridis")
     colors = cmap(np.linspace(0,1,len(periods)))
@@ -932,8 +944,8 @@ def plot_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],dist
     return fig
 
 
-def plot_directional_return_periods(data, var='hs',var_dir='Pdir', periods=[1, 10, 100, 10000],distribution='Weibull', units='m',adjustment='NORSOK',method='default',threshold='default', output_file='monthly_extremes_weibull.png'):
-    df = tables.table_directional_return_periods(data=data,var=var,var_dir=var_dir, periods=periods, distribution=distribution, units=units,adjustment=adjustment,method=method,threshold=threshold, output_file=None)
+def plot_directional_return_periods(data,var='hs',var_dir='Pdir',periods=[1, 10, 100, 10000],distribution='Weibull',units='m',adjustment='NORSOK',method='default',threshold='default',event_duration='default',output_file='monthly_extremes_weibull.png'):
+    df = tables.table_directional_return_periods(data=data,var=var,var_dir=var_dir, periods=periods, distribution=distribution, units=units,adjustment=adjustment,method=method,threshold=threshold,event_duration=event_duration,output_file=None)
     fig, ax = plt.subplots()
     cmap = plt.get_cmap("viridis")
     colors = cmap(np.linspace(0,1,len(periods)))
@@ -950,8 +962,8 @@ def plot_directional_return_periods(data, var='hs',var_dir='Pdir', periods=[1, 1
     return fig
 
 
-def plot_polar_directional_return_periods(data, var='hs', var_dir='Pdir', periods=[1, 10, 100, 10000], distribution='Weibull', units='m', adjustment='NORSOK',method='default',threshold='default', output_file='monthly_extremes_weibull.png'):
-    df = tables.table_directional_return_periods(data=data, var=var, var_dir=var_dir, periods=periods, distribution=distribution, units=units, adjustment=adjustment, method=threshold,threshold=threshold,output_file=None)
+def plot_polar_directional_return_periods(data, var='hs', var_dir='Pdir', periods=[1, 10, 100, 10000], distribution='Weibull', units='m', adjustment='NORSOK',method='default',threshold='default',event_duration='default',output_file='monthly_extremes_weibull.png'):
+    df = tables.table_directional_return_periods(data=data, var=var, var_dir=var_dir, periods=periods, distribution=distribution, units=units, adjustment=adjustment, method=threshold,threshold=threshold,event_duration=event_duration,output_file=None)
 
     # Remove degree symbols and convert to numeric
     directions_str = df['Direction sector'][1:-1].str.rstrip('°')
@@ -1082,8 +1094,8 @@ def plot_hs_for_given_wind(data: pd.DataFrame, var_hs: str, var_wind: str,output
 
     return fig
 
-def plot_profile_return_values(data,var=['W10','W50','W80','W100','W150'], z=[10, 50, 80, 100, 150], periods=[1, 10, 100, 10000],reverse_yaxis=False,title='Return Periods over z',units = 'm/s',distribution='Weibull3P',method='default',threshold='default', output_file='RVE_wind_profile.png'):
-    df = tables.table_profile_return_values(data,var=var, z=z, periods=periods,units = units ,distribution=distribution,method=method,threshold=threshold, output_file=None)
+def plot_profile_return_values(data,var=['W10','W50','W80','W100','W150'], z=[10, 50, 80, 100, 150], periods=[1, 10, 100, 10000],reverse_yaxis=False,title='Return Periods over z',units = 'm/s',distribution='Weibull3P',method='default',threshold='default',event_duration='default',prob='annual', output_file='RVE_wind_profile.png'):
+    df = tables.table_profile_return_values(data,var=var, z=z, periods=periods,units = units ,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration,prob=prob,output_file=None)
     fig, ax = plt.subplots()
     df.columns = [col.replace('Return period ', '') for col in df.columns] # for legends
     plt.yticks(z)  # Set yticks to be the values in z
@@ -1181,7 +1193,7 @@ def plot_storm_surge_for_given_hs(data: pd.DataFrame, var_surge: str, var_hs: st
     return fig
 
 
-def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,return_period=None,distribution='GUM',method='default',threshold='default',unit_var='m/s',unit_lev='m',output_file='plot_cca_profiles.png'):
+def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,return_period=None,distribution='GUM',method='default',threshold='default',event_duration='default',unit_var='m/s',unit_lev='m',output_file='plot_cca_profiles.png'):
     """
     This function plots the CCA profiles for a specific percentile or return period
 
@@ -1198,7 +1210,9 @@ def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,retur
     return_period: float
         Return-period e.g., 10 for a 10-yr return period
     distribution, method, and threshold: string, string, string
-        To specify only if return_period is given 
+        To specify only if return_period is given
+    event_duration: string 'default' or float (in hours) (for currents 10-min events correspond to 1/6 hours)
+        'default' uses the data timestep as event duration
     unit_var: string
         Unit of the variable var, default is 'm/s'
     unit_lev: string
@@ -1217,9 +1231,9 @@ def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,retur
     if ((percentile is None) and (return_period is None)):
         raise ValueError('Please specify either a percentile or a return period in years')
     if not(percentile is None):
-        lev,woca,cca=stats.cca_profiles(data,var=var,month=month,percentile=percentile)
+        lev,woca,cca,_=stats.cca_profiles(data,var=var,month=month,percentile=percentile,event_duration=event_duration)
     if not(return_period is None):
-        lev,woca,cca=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold)
+        lev,woca,cca,_=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration)
     n_lines = len(lev)
     cmap = plt.get_cmap('jet_r')
     colors = cmap(np.linspace(0, 1, n_lines))
@@ -1239,7 +1253,11 @@ def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,retur
         ax.set_title('CCA profile - P'+pp+month_str,fontsize=16)
     if return_period is not None:
         rp=f"{return_period:.0f}"
-        ax.set_title('CCA profile - RP '+rp+' years'+month_str,fontsize=16)
+        if isinstance(event_duration, str):
+            ed_str=event_duration
+        else:
+            ed_str=f"{event_duration:.3f}"
+        ax.set_title('CCA profile - RP '+rp+' years'+month_str+', Duration '+ed_str+' h',fontsize=16)
     ax.tick_params(axis='both', labelsize= 16)
     ax.set_xlim(lev[0],lev[-1])
     plt.grid(color='lightgray',linestyle=':')
