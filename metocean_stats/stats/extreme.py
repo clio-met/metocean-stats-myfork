@@ -568,10 +568,10 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
     elif prob=='monthly':
         pp=1.0/12.0
     else:
-        raise ValueError('Problem: prob is neither annual nor monthly')
+        pp=prob
     
     period = pp*period*(365.2422*24)/interval
-    
+    print(period)
     # Fit a distribution to the data
     if distribution == 'EXP' :
         loc, scale = st.expon.fit(data)
@@ -600,6 +600,109 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
     else:
         print("Please check the distribution's name")    
              
+    return shape, loc, scale, value
+
+
+
+def RVE_ALL_old(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',method='default',threshold='default'):
+    """
+    This function returns the distribution parameters from the fitting to the data and the return level(s)
+
+    Parameters
+    ----------
+    data: dataframe,
+        Contains daily or hourly time series
+    period: float or list
+        List of the return periods
+    distribution: string
+        Can be 'EXP', 'GEV', 'GUM', 'LoNo', 'Weibull2P' or 'Weibull3P'
+    method: string
+        Can be 'default' (all data), 'AM' or 'POT'
+    threshold: string 'default' or float 
+        'default' means the mininimum of the anual maxima
+
+    Returns
+    -------
+    The shape, location, and scale parameters of the distribution,
+    and the return levels for every return period given
+    """
+    shape, loc, scale = [], [], []
+    periods = np.array(periods)
+    #it_selected_max = dataframe.groupby(dataframe.index.year)[var].idxmax().values
+    df = dataframe[var]
+    
+    period = periods
+    # get data for fitting 
+    if method == 'default' : # all data 
+        data = df.values
+    elif method == 'AM' : # annual maxima
+        annual_maxima = df.resample('Y').max() # get annual maximum 
+        data = annual_maxima
+    elif method == 'POT' : # Peak over threshold 
+        if threshold == 'default' :
+            annual_maxima = df.resample('Y').max() 
+            threshold=annual_maxima.min()
+        data = get_extremes(df, method="POT", threshold=threshold, r="48h")
+    else:
+        print ('Please check the method of filtering data')
+    
+    # Return periods in K-th element 
+    try:
+        for i in range(len(period)) :
+            if period[i] == 1 : 
+                period[i] = 1.5873
+    except:
+        if period == 1 : 
+            period = 1.5873
+            
+    # duration = (df.index[-1]-df.index[0]).days + 1 
+    # length_data = data.shape[0]
+    #interval = duration*24/length_data # in hours 
+    interval = ((df.index[-1]-df.index[0]).days + 1)*24/df.shape[0] # in hours 
+    period = period*365.2422*24/interval # years is converted to K-th
+    print(period)
+    # Fit a distribution to the data
+    if distribution == 'EXP' : 
+        loc, scale = st.expon.fit(data)
+        value = st.expon.isf(1/period, loc, scale)
+        #value = st.expon.ppf(1 - 1 / period, loc, scale)
+    elif distribution == 'GEV' :
+        shape, loc, scale = st.genextreme.fit(data) # fit data   
+        value = st.genextreme.isf(1/period, shape, loc, scale)
+        #value = st.genextreme.ppf(1 - 1 / period, shape, loc, scale)
+    elif distribution == 'GUM' :
+        loc, scale = st.gumbel_r.fit(data) # fit data
+        value = st.gumbel_r.isf(1/period, loc, scale)
+        #value = st.gumbel_r.ppf(1 - 1 / period, loc, scale)
+    elif distribution == 'GUM_L' : # Gumbel Left-skewed (for minimum order statistic) Distribution
+        loc, scale = st.gumbel_l.fit(data) # fit data
+        value = st.gumbel_l.ppf(1/period, loc, scale)
+        #value = st.gumbel_l.ppf(1 - 1 / period, loc, scale)
+    elif distribution == 'LoNo' :
+        shape, loc, scale = st.lognorm.fit(data)
+        value = st.lognorm.isf(1/period, shape, loc, scale)
+        #value = st.lognorm.ppf(1 - 1 / period, shape, loc, scale)
+    elif distribution == 'Weibull2P' :
+        shape, loc, scale = st.weibull_min.fit(data, floc=0) # (ML)
+        value = st.weibull_min.isf(1/period, shape, loc, scale)
+        #value = st.weibull_min.ppf(1 - 1 / period, shape, loc, scale)
+    elif distribution == 'Weibull3P' : 
+        shape, loc, scale = st.weibull_min.fit(data) # (ML)
+        value = st.weibull_min.isf(1/period, shape, loc, scale)
+        #value = st.weibull_min.ppf(1 - 1 / period, shape, loc, scale)
+    elif distribution == 'Weibull3P_MOM' : 
+        shape, loc, scale = aux_funcs.Weibull_method_of_moment(data)
+        value = st.weibull_min.isf(1/period, shape, loc, scale)
+        #value = st.weibull_min.ppf(1 - 1 / period, shape, loc, scale)
+    else:
+        print ('Please check the distribution')    
+        
+    #if method == 'default' :  
+    # 	output_file= distribution + '.png'
+    #else:
+    #    output_file= distribution + '(' + method + ')' + '.png'   
+    #plot_return_levels(dataframe,var,value,periods,output_file,it_selected_max)
+       
     return shape, loc, scale, value
 
 
@@ -829,7 +932,7 @@ def monthly_extremes(data, var='hs', periods=[1, 10, 100, 10000], distribution='
     return params, return_values, threshold_values, num_events_per_year
 
 
-def directional_extremes(data: pd.DataFrame, var: str, var_dir: str, periods=[1, 10, 100, 10000], distribution='Weibull3_MOM', adjustment='NORSOK', method='default', threshold='default', event_duration='default'):
+def directional_extremes(data: pd.DataFrame, var: str, var_dir: str, periods=[1, 10, 100, 10000], distribution='Weibull3P_MOM', adjustment='NORSOK', method='default', threshold='default', event_duration='default'):
     # Your implementation of monthly_extremes_weibull function
     # Calculate Weibull parameters for each month
     sector_prob = []
@@ -866,13 +969,13 @@ def directional_extremes(data: pd.DataFrame, var: str, var_dir: str, periods=[1,
             periods_adj = periods_noadj
         if (len(sector_data)>0):
             if method == 'minimum': # used for negative temperature
-                shape, loc, scale, value = RVE_ALL(sector_data.min().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value,event_duration=event_duration,prob='annual')
+                shape, loc, scale, value = RVE_ALL(sector_data.min().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value,event_duration=event_duration,prob=len(sector_data)/len(data[var]))
             elif method == 'maximum': # used for positive temperature
-                shape, loc, scale, value = RVE_ALL(sector_data.max().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value,event_duration=event_duration,prob='annual')
+                shape, loc, scale, value = RVE_ALL(sector_data.max().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value,event_duration=event_duration,prob=len(sector_data)/len(data[var]))
             elif method == 'default':
-                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value,event_duration=event_duration,prob='annual')
+                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value,event_duration=event_duration,prob=len(sector_data)/len(data[var]))
             elif method == 'POT':
-                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value,event_duration=event_duration,prob='annual')
+                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value,event_duration=event_duration,prob=len(sector_data)/len(data[var]))
         sp = 100*len(sector_data)/len(data[var])
         sector_prob.append(sp)
         params.append((shape, loc, scale))
@@ -907,6 +1010,87 @@ def directional_extremes(data: pd.DataFrame, var: str, var_dir: str, periods=[1,
         return_values[:, col] = np.minimum(return_values[:, col], thresholds[col])
 
     return params, return_values, sector_prob,  threshold_values, num_events_per_year
+
+
+def directional_extremes_old(data: pd.DataFrame, var: str, var_dir: str, periods=[1, 10, 100, 10000], distribution='Weibull3P_MOM', adjustment='NORSOK', method='default', threshold='default'):
+    # Your implementation of monthly_extremes_weibull function
+    # Calculate Weibull parameters for each month
+    sector_prob = []
+    params = []
+    threshold_values = []
+    num_events_per_year = []
+    return_values = []
+    aux_funcs.add_direction_sector(data=data,var_dir=var_dir)
+    # time step between each data, in hours
+    # time_step = ((data.index[-1]-data.index[0]).days + 1)*24/data.shape[0]
+    
+    for dir in range(0,360,30):
+        sector_data = data[data['direction_sector']==dir]
+        if sector_data.empty:
+            sp=0.0
+            sector_prob.append(sp)
+            params.append((np.nan, np.nan, np.nan))
+            return_values.append(np.full((len(periods)), fill_value=np.nan))
+            #sector_data = data.loc[:, data.select_dtypes(include=['number']).columns] * 0 # fill with zeros, this will give 0 extremes for empty sectors
+            continue
+        if isinstance(threshold, str) and threshold.startswith('P'):
+            threshold_value = sector_data[var].quantile(int(threshold.split('P')[1])/100)
+            threshold_values.append(threshold_value)
+            # Calculate the number of events exceeding a threshold:
+            num_years = (sector_data.index[-1]  - sector_data.index[0] ).days / 365.25  # Using 365.25 to account for leap years
+            num_events_per_year.append((sector_data[var] >= threshold_value).sum()/num_years)
+        else:
+            threshold_value = threshold
+        periods_adj = [x * 6 for x in periods]#*24*365.2422/time_step
+        periods_noadj = periods#*24*365.2422/time_step
+        if adjustment == 'NORSOK':
+            pass
+        else:
+            periods_adj = periods_noadj
+        if (len(sector_data)>0):
+            if method == 'minimum': # used for negative temperature
+                shape, loc, scale, value = RVE_ALL(sector_data.min().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value)
+            elif method == 'maximum': # used for positive temperature
+                shape, loc, scale, value = RVE_ALL(sector_data.max().dropna(),var=var,periods=periods_adj,distribution=distribution,method='default',threshold=threshold_value)
+            elif method == 'default':
+                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value)
+            elif method == 'POT':
+                shape, loc, scale, value = RVE_ALL(sector_data,var=var,periods=periods_adj,distribution=distribution,method=method,threshold=threshold_value)
+        sp = 100*len(sector_data)/len(data[var])
+        sector_prob.append(sp)
+        params.append((shape, loc, scale))
+        return_values.append(value)
+
+    # add annual
+    if isinstance(threshold, str) and threshold.startswith('P'):
+        threshold_value = data[var].quantile(int(threshold.split('P')[1])/100)
+        threshold_values.append(threshold_value)
+        # Calculate the number of events exceeding a threshold:
+        num_years = (data.index[-1]  - data.index[0] ).days / 365.25  # Using 365.25 to account for leap years
+        num_events_per_year.append((data[var] >= threshold_value).sum()/num_years)
+    else:
+        threshold_value = threshold
+    if method == 'minimum':
+        shape, loc, scale, value = RVE_ALL(data.resample('YE').min(),var=var,periods=periods,distribution=distribution,method='default',threshold=threshold_value)
+    elif method == 'maximum':
+        shape, loc, scale, value = RVE_ALL(data.resample('YE').max(),var=var,periods=periods,distribution=distribution,method='default',threshold=threshold_value)
+    elif method == 'default':
+        shape, loc, scale, value = RVE_ALL(data,var=var,periods=periods,distribution=distribution,method='default',threshold=threshold_value)
+    elif method == 'POT':
+        shape, loc, scale, value = RVE_ALL(data,var=var,periods=periods,distribution=distribution,method=method,threshold=threshold_value)
+    
+    params.append((shape, loc, scale))
+    return_values.append(value)
+    return_values = np.array(return_values)
+    # Define the threshold values (annual values) for each column
+    thresholds = return_values[-1]
+    
+    # Replace values in each column that exceed the thresholds
+    for col in range(return_values.shape[1]):
+        return_values[:, col] = np.minimum(return_values[:, col], thresholds[col])
+
+    return params, return_values, sector_prob,  threshold_values, num_events_per_year
+
 
 def monthly_joint_distribution_Hs_Tp_weibull(data, var='hs', periods=[1, 10, 100, 10000]):
     # Your implementation of monthly_extremes_weibull function
