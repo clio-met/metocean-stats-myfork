@@ -961,7 +961,7 @@ def table_cca_profiles(data,var='current_speed_',month=None,percentile=None,retu
     else:
         prob='monthly'
     if not(return_period is None):
-        lev,woca,cca=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration)
+        lev,woca,cca,_=stats.cca_profiles(data,var=var,month=month,return_period=return_period,distribution=distribution,method=method,threshold=threshold,event_duration=event_duration)
     list_ind=[]
     columns=['Depth [m]']+[d for d in lev]+['Worst case']
     table = np.zeros((len(lev),len(lev)+2))
