@@ -118,15 +118,30 @@ def consecutive_indices(lst):
     return result
 
 
-def Hs_Tp_curve(data,pdf_Hs,pdf_Hs_Tp,f_Hs_Tp,h,t,interval,X=100):
+def Hs_Tp_curve(data,pdf_Hs,pdf_Hs_Tp,f_Hs_Tp,h,t,interval,X=100,event_duration='default',prob='annual'):
 
     # RVE of X years 
     shape, loc, scale = Weibull_method_of_moment(data) # shape, loc, scale
     
     if X == 1 : 
-        period=1.5873*365.2422*24/interval
+        period=1.5873
     else :
-        period=X*365.2422*24/interval
+        period=X
+    
+    if event_duration=='default':
+        interval1=interval  # in hours
+    else:
+        interval1=event_duration # in hours
+
+    if prob=='annual':
+        pp=1.0
+    elif prob=='monthly':
+        pp=1.0/12.0
+    else:
+        pp=prob
+
+    period = pp*period*(365.2422*24)/interval1
+
     rve_X = st.weibull_min.isf(1/period, shape, loc, scale)
     
     # Find index of Hs=value
@@ -185,7 +200,72 @@ def Gauss4(x, b2, b3):
     return y
 
 
-def DNV_steepness(df,h,t,periods,interval):
+def DNV_steepness(df,h,t,periods,interval,event_duration='default',prob='annual'):
+    ## steepness 
+    max_y=max(periods)
+    X = max_y # get max 500 year 
+    if event_duration=='default':
+        interval1=interval  # in hours
+    else:
+        interval1=event_duration # in hours
+
+    if prob=='annual':
+        pp=1.0
+    elif prob=='monthly':
+        pp=1.0/12.0
+    else:
+        pp=prob
+    
+    period = pp*X*(365.2422*24)/interval1
+    shape, loc, scale = Weibull_method_of_moment(df.hs.values) # shape, loc, scale
+    rve_X = st.weibull_min.isf(1/period, shape, loc, scale)
+    
+    h1=[]
+    t1=[]
+    h2=[]
+    t2=[]
+    h3=[]
+    t3=[]
+    g = 9.80665
+    j15 = 10000
+    for j in range(len(t)):
+        if t[j]<=8 :
+            Sp=1/15
+            temp = Sp * g * t[j]**2 /(2*np.pi)
+            if temp <= rve_X:
+                h1.append(temp)
+                t1.append(t[j])
+        
+            j8=j # t=8
+            h1_t8=temp
+            t8=t[j]
+        elif t[j]>=15 :
+            Sp=1/25 
+            temp = Sp * g * t[j]**2 /(2*np.pi)
+            if temp <= rve_X:
+                h3.append(temp)
+                t3.append(t[j])
+            if j < j15 :
+                j15=j # t=15
+                h3_t15=temp
+                t15=t[j]
+
+    xp = [t8, t15]
+    fp = [h1_t8, h3_t15]
+    t2_=t[j8+1:j15]
+    h2_=np.interp(t2_, xp, fp)
+    for i in range(len(h2_)):
+        if h2_[i] <= rve_X:
+            h2.append(h2_[i])
+            t2.append(t2_[i])
+
+    h_steepness=np.asarray(h1+h2+h3)
+    t_steepness=np.asarray(t1+t2+t3)
+    
+    return t_steepness, h_steepness
+
+
+def DNV_steepness_old(df,h,t,periods,interval):
     ## steepness 
     max_y=max(periods)
     X = max_y # get max 500 year 
@@ -237,7 +317,55 @@ def DNV_steepness(df,h,t,periods,interval):
     
     return t_steepness, h_steepness
 
-def find_percentile(data,pdf_Hs_Tp,h,t,p,periods,interval):
+def find_percentile(data,pdf_Hs_Tp,h,t,p,periods,interval,event_duration='default',prob='annual'):
+
+    ## find pecentile
+    # RVE of X years 
+    max_y=max(periods)
+    X = max_y # get max 500 year 
+    #period=X*365.2422*24/interval
+    if event_duration=='default':
+        interval1=interval  # in hours
+    else:
+        interval1=event_duration # in hours
+
+    if prob=='annual':
+        pp=1.0
+    elif prob=='monthly':
+        pp=1.0/12.0
+    else:
+        pp=prob
+    
+    period = pp*X*(365.2422*24)/interval1
+    shape, loc, scale = Weibull_method_of_moment(data) # shape, loc, scale
+    rve_X = st.weibull_min.isf(1/period, shape, loc, scale)
+    epsilon = abs(h - rve_X)
+    param = find_peaks(1/epsilon) # to find the index of bottom
+    index_X = param[0][0]     # the  index of Hs=value
+    
+    
+    h1=[]
+    t1=[]
+    # Find peak of pdf at Hs=RVE of X year 
+    for i in range(index_X):
+        pdf_Hs_Tp_X = pdf_Hs_Tp[i,:] # Find pdf at RVE of X year 
+        #sum_pdf = sum(pdf_Hs_Tp_X)
+
+        # Create a normalized cumulative array of pdf_Hs_Tp_X 
+        cumulative_pdf = np.cumsum(pdf_Hs_Tp_X) / np.sum(pdf_Hs_Tp_X)
+
+        # Find the location where p/100 fits in the array
+        j = np.searchsorted(cumulative_pdf,p/100)
+
+        t1.append(t[j])
+        h1.append(h[i])
+    h1=np.asarray(h1)
+    t1=np.asarray(t1)
+
+    return t1,h1
+
+
+def find_percentile_old(data,pdf_Hs_Tp,h,t,p,periods,interval):
 
     ## find pecentile
     # RVE of X years 

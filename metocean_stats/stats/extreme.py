@@ -706,7 +706,7 @@ def RVE_ALL_old(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull
     return shape, loc, scale, value
 
 
-def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,10000], adjustment=None):  
+def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,10000],adjustment=None, event_duration='default', prob='annual'):  
     
     """
     This fuction will plot Hs-Tp joint distribution using LogNoWe model (the Lognormal + Weibull distribution) 
@@ -852,7 +852,7 @@ def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,1000
 
     # Assuming Hs_Tp_curve() returns four values, otherwise adjust accordingly
     for i in range(len(periods)):
-        t3_val, h3_val, X_val, hs_tpl_tph_val = aux_funcs.Hs_Tp_curve(df.hs.values, pdf_Hs, pdf_Hs_Tp, f_Hs_Tp, h, t, interval, X=periods_adj[i])
+        t3_val, h3_val, X_val, hs_tpl_tph_val = aux_funcs.Hs_Tp_curve(df.hs.values, pdf_Hs, pdf_Hs_Tp, f_Hs_Tp, h, t, interval, X=periods_adj[i], event_duration=event_duration, prob=prob)
         t3.append(t3_val)
         h3.append(h3_val)
         X.append(X_val)

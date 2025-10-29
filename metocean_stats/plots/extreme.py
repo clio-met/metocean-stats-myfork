@@ -789,6 +789,8 @@ def plot_joint_distribution_Hs_Tp(
         density_plot=False,
         model = "lonowe",
         state_duration = 1,
+        event_duration = 'default',
+        prob='annual'
         ):
 
     if model != "lonowe":
@@ -808,7 +810,7 @@ def plot_joint_distribution_Hs_Tp(
         if output_file != "": ax.get_figure().savefig(output_file)
         return ax
 
-    a1, a2, a3, b1, b2, b3, pdf_Hs, h, t3,h3,X,hs_tpl_tph = stats.joint_distribution_Hs_Tp(data=data,var_hs=var_hs,var_tp=var_tp,periods=periods)
+    a1, a2, a3, b1, b2, b3, pdf_Hs, h, t3,h3,X,hs_tpl_tph = stats.joint_distribution_Hs_Tp(data=data,var_hs=var_hs,var_tp=var_tp,periods=periods,event_duration=event_duration,prob=prob)
     df = data
     # calculate pdf Hs, Tp 
     t = np.linspace(start=0.01, stop=40, num=2000)
@@ -826,10 +828,10 @@ def plot_joint_distribution_Hs_Tp(
               
     
     interval = ((df.index[-1]-df.index[0]).days + 1)*24/df.shape[0] # in hours 
-    t_steepness, h_steepness = aux_funcs.DNV_steepness(df,h,t,periods,interval)
-    percentile05 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,5,periods,interval)
-    percentile50 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,50,periods,interval)
-    percentile95 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,95,periods,interval)
+    t_steepness, h_steepness = aux_funcs.DNV_steepness(df,h,t,periods,interval,event_duration=event_duration,prob=prob)
+    percentile05 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,5,periods,interval,event_duration=event_duration,prob=prob)
+    percentile50 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,50,periods,interval,event_duration=event_duration,prob=prob)
+    percentile95 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,95,periods,interval,event_duration=event_duration,prob=prob)
     
     fig, ax = plt.subplots(figsize=(8,6))
     df = df[df['hs'] >= 0.1]
