@@ -507,10 +507,24 @@ def plot_diana_spectrum(data, var='SPEC', period=None, month = None, method='mea
 
     # If 'wind_direction' in data plot mean wind, swell wave and wind sea wave direction
     if 'wind_direction' in data:
+        tu=data['wind_direction'].dims
+        dimlist_wdir=[t for t in tu]
+        if 'height' in dimlist_wdir:
+            wdir=filtered_data['wind_direction'].sel(height=10)
+        else:
+            wdir=filtered_data['wind_direction']
+        del tu,dimlist_wdir
+        tu=data['wind_speed'].dims
+        dimlist_wspd=[t for t in tu]
+        if 'height' in dimlist_wspd:
+            wspd=filtered_data['wind_speed'].sel(height=10)
+        else:
+            wspd=filtered_data['wind_speed']
+        del tu,dimlist_wspd
         # Plot wind
         plot_direction_arrow(ax_arrow,
-                            direction=(filtered_data['wind_direction'].sel(height=10)),
-                            speed_data=filtered_data['wind_speed'].sel(height=10),
+                            direction=wdir,
+                            speed_data=wspd,
                             hm0=filtered_data['hm0'],
                             method=method,
                             month=month,
@@ -597,12 +611,12 @@ def plot_diana_spectrum(data, var='SPEC', period=None, month = None, method='mea
     ############ Create label with position, period, method, and Hm0 for the plot ############
     lat_str = ", ".join(
         f"{abs(lat):.1f}°{'N' if lat >= 0 else 'S'}"                                # Format latitudes with N/S
-        for lat in np.unique(data['latitude'].round(1).values)
+        for lat in np.unique(data['latitude'].round(1).values)[0:1]
     )
 
     lon_str = ", ".join(
         f"{abs(lon):.1f}°{'E' if lon >= 0 else 'W'}"                                # Format longitudes with E/W
-        for lon in np.unique(data['longitude'].round(1).values)
+        for lon in np.unique(data['longitude'].round(1).values)[0:1]
     )
 
     label = (

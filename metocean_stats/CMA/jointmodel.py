@@ -415,6 +415,7 @@ class JointProbabilityModel(GlobalHierarchicalModel):
             self.legend_handles += new_artist
             self.legend_labels += [labels[i]]
 
+        ax.grid(True)
         return ax
 
     def plot_pdf_heatmap(

@@ -96,7 +96,6 @@ def table_directional_joint_distribution_Hs_Tp_param(
         Name for the direction column. Must be defined in degrees.
     model : str, default lonowe
         The model to use:
-
          - lonowe: Lognormal+Weibull / Lognormal model. Note - uses variance of log-Tp intervals.
          - hs_tp: Weibull / Lognormal model. Note - uses standard deviation of the log-Tp intervals.
     sectors : int, default 12

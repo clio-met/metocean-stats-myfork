@@ -514,7 +514,7 @@ def plot_monthly_weather_window(data: pd.DataFrame, var: str, threshold=5, windo
     fig, ax = plt.subplots(figsize=(12, 6))
     results_df.T.plot(marker='o',cmap='viridis')
     lines = results_df.T.plot(marker='o',cmap='viridis')
-    plt.title(str(var[0])+' < '+str(threshold[0])+' for ' + str(window_size)+' hours')
+    plt.title(str(var)+' < '+str(threshold)+' for ' + str(window_size)+' hours')
     plt.xlabel('Month')
     plt.ylabel('Duration [days]')
     plt.legend()

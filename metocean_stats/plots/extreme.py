@@ -588,7 +588,6 @@ def plot_joint_2D_contour(
         A column of the dataframe corresponding to the second variable of the model.
     model : str, default hs_tp
         The model. One of 
-
              - Hs_Tp: DNV-RP-C205 model of significant wave height and peak wave period
              - Hs_U: DNV-RP-C205 model of wind speed and significant wave height
     return_periods : list[float], default [50,100]
@@ -610,11 +609,15 @@ def plot_joint_2D_contour(
     model = JointProbabilityModel(model)
     model.fit(data,var1,var2)
     ax = model.plot_contours(periods=return_periods,state_duration=state_duration)
-    model.plot_data_density(ax)
+    model.plot_data_density(ax,density=True)
     model.plot_dependent_percentiles(ax)
-    model.plot_DNVGL_steepness_criterion(ax,label="Steepness\nlimit")
+    model.plot_DNVGL_steepness_criterion(ax,label="Steepness")
     model.plot_legend(ax)
+    #ax.set_xlim(0,35)
+    #ax.set_title("Omni")
     if output_file!="":ax.get_figure().savefig(output_file,bbox_inches="tight")
+    #for rp in return_periods:
+    #    print(model.table_contour(return_period=rp,state_duration=state_duration))
     return ax
 
 def plot_joint_3D_contour(
@@ -828,18 +831,18 @@ def plot_joint_distribution_Hs_Tp(
               
     
     interval = ((df.index[-1]-df.index[0]).days + 1)*24/df.shape[0] # in hours 
-    t_steepness, h_steepness = aux_funcs.DNV_steepness(df,h,t,periods,interval,event_duration=event_duration,prob=prob)
-    percentile05 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,5,periods,interval,event_duration=event_duration,prob=prob)
-    percentile50 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,50,periods,interval,event_duration=event_duration,prob=prob)
-    percentile95 = aux_funcs.find_percentile(df.hs.values,pdf_Hs_Tp,h,t,95,periods,interval,event_duration=event_duration,prob=prob)
+    t_steepness, h_steepness = aux_funcs.DNV_steepness(df,var_hs,t,periods,interval,event_duration=event_duration,prob=prob)
+    percentile05 = aux_funcs.find_percentile(df[var_hs].values,pdf_Hs_Tp,h,t,5,periods,interval,event_duration=event_duration,prob=prob)
+    percentile50 = aux_funcs.find_percentile(df[var_hs].values,pdf_Hs_Tp,h,t,50,periods,interval,event_duration=event_duration,prob=prob)
+    percentile95 = aux_funcs.find_percentile(df[var_hs].values,pdf_Hs_Tp,h,t,95,periods,interval,event_duration=event_duration,prob=prob)
     
     fig, ax = plt.subplots(figsize=(8,6))
-    df = df[df['hs'] >= 0.1]
+    df = df[df[var_hs] >= 0.1]
     if density_plot is False: 
-        plt.scatter(df.tp.values,df.hs.values,c='red',label='data',s=3)
+        plt.scatter(df[var_tp].values,[var_hs].values,c='red',label='data',s=3)
     else:
         #plt.scatter(df.tp.values,df.hs.values,c='red',label='data',s=3)
-        plt.hist2d(df['tp'].values, df['hs'].values,bins=50, cmap='hot',cmin=1)
+        plt.hist2d(df[var_tp].values, df[var_hs].values,bins=50, cmap='hot',cmin=1)
         plt.colorbar()
 
 
@@ -849,9 +852,9 @@ def plot_joint_distribution_Hs_Tp(
 
     plt.plot(t_steepness,h_steepness,'k--',label='steepness')
     
-    plt.plot(percentile50[0],percentile50[1],'g',label='Tp-mean',linewidth=5)
-    plt.plot(percentile05[0],percentile05[1],'g:',label='Tp-5%',linewidth=2)
-    plt.plot(percentile95[0],percentile95[1],'g--',label='Tp-95%',linewidth=2)
+    plt.plot(percentile05[0],percentile05[1],'g:',label='Tp - 5%',linewidth=2)
+    plt.plot(percentile50[0],percentile50[1],'g',label='Tp - 50%',linewidth=5)
+    plt.plot(percentile95[0],percentile95[1],'g--',label='Tp - 95%',linewidth=2)
 
     plt.xlabel('Tp - Peak Period [s]')
     plt.suptitle(title)

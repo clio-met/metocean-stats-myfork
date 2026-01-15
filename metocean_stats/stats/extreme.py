@@ -530,18 +530,20 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
     The shape, location, and scale parameters of the distribution,
     and the return levels for every return period given
     """
+
     shape, loc, scale = [], [], []
     periods = np.array(periods)
     df = dataframe[var]
-    
+
     period = periods
     # get data for fitting 
     if method == 'default' : # all data
-        data = df.values
+        #data = df.values
+        data = df
     elif method == 'AM' : # annual maxima
-        annual_maxima = df.resample('Y').max() # get annual maximum 
+        annual_maxima = df.resample('Y').max() # get annual maximum
         data = annual_maxima
-    elif method == 'POT' : # Peak over threshold 
+    elif method == 'POT' : # Peak over threshold
         if threshold == 'default' :
             annual_maxima = df.resample('Y').max() 
             threshold=annual_maxima.min()
@@ -571,7 +573,6 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
         pp=prob
     
     period = pp*period*(365.2422*24)/interval
-    print(period)
     # Fit a distribution to the data
     if distribution == 'EXP' :
         loc, scale = st.expon.fit(data)
@@ -719,7 +720,8 @@ def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,1000
         periods_adj = np.array([x * 6 for x in periods])
     else:
         periods_adj = periods
-    df  = data
+    #df = data
+    df = data.dropna()
     # max_y = max(periods)
     # period = np.array(periods)
     pd.options.mode.chained_assignment = None  # default='warn'
@@ -741,7 +743,7 @@ def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,1000
         #Based on Moan et al. (2005), "Uncertainty of wave-induced response of marine structures due to long-term variation of extratropical wave conditions":
         pdf_Hs1 = 1/(np.sqrt(2*np.pi)*sigma*h)*np.exp(-(np.log(h)-alpha)**2/(2*sigma**2))
     else:
-        param = st.lognorm.fit(df.hs.values,) # shape, loc, scale
+        param = st.lognorm.fit(df.hs.values) # shape, loc, scale
         pdf_lognorm = st.lognorm.pdf(h, param[0], loc=param[1], scale=param[2])
         pdf_Hs1 = pdf_lognorm
     
@@ -783,8 +785,8 @@ def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,1000
     
             
     #####################################################
-    # calcualte a1, a2, a3, b1, b2, b3 
-    # firstly calcualte mean_hs, mean_lnTp, variance_lnTp 
+    # calculate a1, a2, a3, b1, b2, b3 
+    # first calculate mean_hs, mean_lnTp, variance_lnTp 
     Tp = df.tp.values
     Hs = df.hs.values
     maxHs = max(Hs)
@@ -814,7 +816,7 @@ def joint_distribution_Hs_Tp(data,var_hs='hs',var_tp='tp',periods=[1,10,100,1000
     mean_lnTp = np.asarray(mean_lnTp)
     variance_lnTp = np.asarray(variance_lnTp)
 
-    # calcualte a1, a2, a3 
+    # calculate a1, a2, a3 
     parameters, covariance = curve_fit(aux_funcs.Gauss3, mean_hs, mean_lnTp)
     a1 = parameters[0]
     a2 = parameters[1]

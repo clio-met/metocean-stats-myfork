@@ -200,7 +200,7 @@ def Gauss4(x, b2, b3):
     return y
 
 
-def DNV_steepness(df,h,t,periods,interval,event_duration='default',prob='annual'):
+def DNV_steepness(df,var_hs,t,periods,interval,event_duration='default',prob='annual'):
     ## steepness 
     max_y=max(periods)
     X = max_y # get max 500 year 
@@ -217,7 +217,7 @@ def DNV_steepness(df,h,t,periods,interval,event_duration='default',prob='annual'
         pp=prob
     
     period = pp*X*(365.2422*24)/interval1
-    shape, loc, scale = Weibull_method_of_moment(df.hs.values) # shape, loc, scale
+    shape, loc, scale = Weibull_method_of_moment(df[var_hs].values) # shape, loc, scale
     rve_X = st.weibull_min.isf(1/period, shape, loc, scale)
     
     h1=[]

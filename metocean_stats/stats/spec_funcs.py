@@ -802,12 +802,26 @@ def Spectral_Partition_wind(data, beta =1.3, method='mean', month=None):
                             dims=['time', 'direction'],
                             coords={'time': data.time, 'direction': data.direction})
 
+    tu=data['wind_direction'].dims
+    dimlist_wdir=[t for t in tu]
+    if 'height' in dimlist_wdir:
+        wdir=data['wind_direction'].sel(height=10)
+    else:
+        wdir=data['wind_direction']
+    del tu,dimlist_wdir
+    tu=data['wind_speed'].dims
+    dimlist_wspd=[t for t in tu]
+    if 'height' in dimlist_wspd:
+        wspd=data['wind_speed'].sel(height=10)
+    else:
+        wspd=data['wind_speed']
+    del tu,dimlist_wspd
     # Loop over each time step to compute the angular difference between wave direction and wind direction
     for i in range (len(data['diff_dir'].time)):
-        data['diff_dir'][i,:] = angular_difference((data.direction), ((data['wind_direction'].sel(height=10)[i].item() - 180)))
+        data['diff_dir'][i,:] = angular_difference((data.direction), ((wdir[i].item() - 180)))
 
     # Calculate the dimensionless parameter A, which is used to distinguish between swell and windsea
-    data['A']  = beta*(data['wind_speed'].sel(height=10)/data['cp'])*np.cos(np.deg2rad(data['diff_dir']))
+    data['A']  = beta*(wspd/data['cp'])*np.cos(np.deg2rad(data['diff_dir']))
 
     # Partition the wave spectrum into swell and windsea components based on the value of A
     data['SPEC_swell'] = data['SPEC'].where(data['A']<=1,0)

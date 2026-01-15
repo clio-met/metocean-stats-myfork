@@ -6,6 +6,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import calendar
 import scipy.stats as st
+import sys
 
 from math import floor,ceil
 from scipy.signal import find_peaks
@@ -361,9 +362,13 @@ def weather_window_length_MultipleVariables(df,vars,threshold,op_duration,timest
     Generalization of weather_window_length to multiple conditions by clio-met
     """
     month_ts = df.index.month
+    if not isinstance(vars, list):
+        vars=[vars]
+    if not isinstance(threshold, list):
+        threshold=[threshold]
     if (len(vars)!=len(threshold)):
         print('Error: vars must be the same length as threshold')
-        print(sys.exit())
+        sys.exit()
     if len(vars)==1:
         ts_mask=np.where(df[vars[0]]<threshold[0],1,0)
     elif len(vars)==2:
