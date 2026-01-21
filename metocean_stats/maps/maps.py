@@ -7,6 +7,7 @@ import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
 import re
+import math
 
 # Helper function to handle projection and coordinate transformation
 def get_transformed_coordinates(ds, lon_var, lat_var, projection_type='rotated_pole'):
@@ -150,7 +151,7 @@ def plot_points_on_map(lon:list[float]|float,
 
 
 # Function to plot several points and one main on a map wth LambertConformal projection
-def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png',lon_lim=(),lat_lim=()):
+def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png',vmax=1000,lon_lim=(),lat_lim=()):
     '''
     Plot a set of longitude and latitude on a map, with bathymetry and land features. 
     
@@ -189,7 +190,7 @@ def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png'
         latarr = ds['latitude'].values
         ds.close()
         del ds
-        print(np.shape(lonarr))
+        #print(np.shape(lonarr))
     else:
         pass
 
@@ -202,15 +203,15 @@ def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png'
         lon_min, lon_max = max(min(lon_list) - 5, -180), min(max(lon_list) + 5, 180)
     else:
         lon_min, lon_max = lon_lim
-    print(lon_min,lon_max)
-    print(lat_min,lat_max)
+    #print(lon_min,lon_max)
+    #print(lat_min,lat_max)
 
     # Central longitude
     c_l=lon_min+(lon_max-lon_min)/2
 
     # Markers customization
-    if len(lon)>1:
-        nl=len(label)-1
+    if len(lon_list)>1:
+        nl=len(label_list)-1
         if nl>14:
             print('The number of points to plot should be < 14')
             return
@@ -229,12 +230,12 @@ def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png'
     fig = plt.figure(figsize=(10, 8))
     ax = plt.axes(projection=ccrs.LambertConformal(central_longitude=c_l))
     i=0
-    for lon, lat, lab in zip(lon_list, lat_list, label_list):
-        ax.plot(lon, lat, marker=markers[i], markersize=markersize[i], markerfacecolor=markerfacecolors[i], linewidth=0, markeredgecolor=colors[i], label=lab, transform=ccrs.PlateCarree())
+    for lon1, lat1, lab in zip(lon_list, lat_list, label_list):
+        ax.plot(lon1, lat1, marker=markers[i], markersize=markersize[i], markerfacecolor=markerfacecolors[i], linewidth=0, markeredgecolor=colors[i], label=lab, transform=ccrs.PlateCarree())
         i=i+1
 
     ax.set_extent([lon_min, lon_max, lat_min, lat_max], crs=ccrs.PlateCarree())
-    coast = cfeature.NaturalEarthFeature(category='physical', name='coastline', scale='10m', edgecolor='lightgrey', facecolor='darkkhaki')
+    coast = cfeature.NaturalEarthFeature(category='physical', name='coastline', scale='10m', edgecolor=None, facecolor='darkkhaki')
     ax.add_feature(coast)
 
     if bathymetry == 'NORA3':
@@ -243,7 +244,12 @@ def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png'
             (latarr <= lat_min-2) | (latarr >= lat_max+2)
         )
         depth_extent = np.ma.masked_where(mask_extent, depth)
-        cont = ax.contourf(lonarr, latarr, depth_extent, cmap='binary', levels=30, transform=ccrs.PlateCarree())
+        #print(depth_extent)
+        #max_depth = np.nanmax(depth_extent)
+        # Round up the max_depth to the closest tenth
+        #max_depth = float(int(math.ceil(max_depth / 10.0)) * 10)
+        #cont = ax.contourf(lonarr, latarr, depth_extent, cmap='binary', levels=30, transform=ccrs.PlateCarree())
+        cont = ax.contourf(lonarr, latarr, depth_extent, cmap='binary', levels=np.arange(0,vmax+20,20), transform=ccrs.PlateCarree(),extend='max')
         cbar = plt.colorbar(cont, orientation='vertical', pad=0.02, aspect=16, shrink=0.8)
         cbar.ax.tick_params(labelsize=14)
         cbar.set_label('Depth [m]',fontsize=15)
@@ -262,7 +268,7 @@ def plot_points_on_map_lc(lon,lat,label,bathymetry='NORA3',output_file='map.png'
 
     plt.tight_layout()
     if output_file != "":
-        plt.savefig(output_file)
+        plt.savefig(output_file, bbox_inches='tight')
     plt.close()
     return fig
 
