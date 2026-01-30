@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..stats.aux_funcs import convert_latexTab_to_csv, add_direction_sector
 
-def table_directional_min_mean_max(data, direction, intensity, output_file) : 
+def table_directional_min_mean_max(data, direction, intensity, output_file): 
     direction = data[direction]
     intensity = data[intensity]
     temp_file  = output_file.split('.')[0]
@@ -40,21 +40,21 @@ def table_directional_min_mean_max(data, direction, intensity, output_file) :
             df_dir = pd.DataFrame()
             df_dir.index = dic_time[str(int(bins_dir[j]))]
             df_dir['Hs'] = dic_Hs[str(int(bins_dir[j]))]
-            annual_max_dir = df_dir.resample('Y').max()
+            annual_max_dir = df_dir.resample('YE').max()
             mind = round(annual_max_dir.min()['Hs'],1)
             meand = round(annual_max_dir.mean()['Hs'],1)
             maxd = round(annual_max_dir.max()['Hs'],1)
             start = bins_dir[j] - 15
             if start < 0 : 
                 start = 345 
-            f.write(str(start) + '-' + str(bins_dir[j]+15) + ' & ' + str(mind) + ' & ' + str(round(meand,1)) + ' & ' + str(maxd) + ' \\\\' + '\n')
+            f.write(str(start)+'°-' + str(bins_dir[j]+15)+'°' + ' & ' + str(mind) + ' & ' + str(round(meand,1)) + ' & ' + str(maxd) + ' \\\\' + '\n')
             
         ## annual row 
-        annual_max = intensity.resample('Y').max()
+        annual_max = intensity.resample('YE').max()
         mind = round(annual_max.min(),1)
         meand = round(annual_max.mean(),1)
         maxd = round(annual_max.max(),1)
-        f.write('Annual & ' + str(mind) + ' & ' + str(meand) + ' & ' + str(maxd) + ' \\\\' + '\n')
+        f.write('Overall & ' + str(mind) + ' & ' + str(meand) + ' & ' + str(maxd) + ' \\\\' + '\n')
         f.write('\hline' + '\n')
         f.write('\end{tabular}' + '\n')
 
@@ -144,3 +144,115 @@ def table_directional_non_exceedance(data: pd.DataFrame, var1: str, step_var1: f
 
     return cumulative_percentage
 
+
+
+
+def table_directional_frequency(data: pd.DataFrame, var: str, sector_width: float, output_file: str = None):
+    bins=np.arange(0.0-sector_width/2,360+sector_width,sector_width)
+
+    M = data[var].index.month.values
+    
+    # get month names 
+    import calendar
+    months = calendar.month_name[1:] # eliminate the first insane one 
+    for i in range(len(months)) : 
+        months[i] = months[i][:3] # get the three first letters 
+
+    df=pd.DataFrame()
+
+    for i in range(len(months)) : 
+        a=data[var].iloc[M==i+1].to_numpy()
+        h,_ = np.histogram(a,bins=bins)
+        h1=h[0:-1]
+        h1[0]=h1[0]+h[-1]
+        del h
+        h1=h1/h1.sum()*100.0
+        df[months[i]]=h1
+        del h1
+     
+
+    h,be = np.histogram(data[var],bins=bins)
+    h1=h[0:-1]
+    h1[0]=h1[0]+h[-1]
+    del h
+    h1=h1/h1.sum()*100.0
+    df['Year']=h1
+    del h1
+
+    sectors=[]
+    for i in range(len(be)-2):
+        if i==0:
+            sectors.append(str(int(be[-2]))+'°-'+str(int(be[i+1]))+'°')
+        else:
+            sectors.append(str(int(be[i]))+'°-'+str(int(be[i+1]))+'°')
+
+    df['Sector']=sectors
+    df=df.set_index('Sector')
+
+    if output_file:
+        df.to_csv(output_file)
+
+    return df
+
+
+
+def table_directional_mean_p99_max(data, direction, intensity, output_file):
+    direction = data[direction]
+    intensity = data[intensity]
+    temp_file  = output_file.split('.')[0]
+    
+    time = intensity.index
+    
+    # sorted by sectors/directions, keep time for the next part
+    bins_dir = np.arange(0,360,30) # 0,30,...,300,330
+    dic_Hs = {}
+    dic_time = {}
+    for i in range(len(bins_dir)):
+        dic_Hs[str(int(bins_dir[i]))] = []
+        dic_time[str(int(bins_dir[i]))] = []
+    
+    for i in range(len(intensity)):
+        if (345 <= direction.iloc[i]):
+            dic_time[str(int(bins_dir[0]))].append(time[i])
+            dic_Hs[str(int(bins_dir[0]))].append(intensity.iloc[i]) 
+        else: 
+            for j in range(len(bins_dir)):
+                if (bins_dir[j]-15 <= direction.iloc[i] < bins_dir[j] + 15): # -15 --> +345
+                    dic_time[str(int(bins_dir[j]))].append(time[i])
+                    dic_Hs[str(int(bins_dir[j]))].append(intensity.iloc[i]) 
+     
+    # write to file
+    with open(temp_file, 'w') as f:
+        f.write('\\begin{tabular}{l | c c c }' + '\n')
+        f.write('Direction & Mean & P99 & Maximum \\\\' + '\n')
+        f.write('\hline' + '\n')
+        
+        # sorted by years, get max in each year, and statistical values
+        for j in range(len(bins_dir)):
+            df_dir = pd.DataFrame()
+            df_dir.index = dic_time[str(int(bins_dir[j]))]
+            df_dir['Hs'] = dic_Hs[str(int(bins_dir[j]))]
+            #annual_max_dir = df_dir.resample('Y').max()
+            meand = round(df_dir.mean()['Hs'],1)
+            p99d = round(df_dir.quantile(0.99)['Hs'],1)
+            maxd = round(df_dir.max()['Hs'],1)
+            start = bins_dir[j] - 15
+            if start < 0: 
+                start = 345
+            f.write(str(start) + '°-' + str(bins_dir[j]+15) + '° & ' + str(round(meand,1)) + ' & ' + str(p99d) + ' & ' + str(maxd) + ' \\\\' + '\n')
+        
+        # omni row
+        p99d = round(intensity.quantile(0.99),1)
+        meand = round(intensity.mean(),1)
+        maxd = round(intensity.max(),1)
+        f.write('Omni & ' + str(meand) + ' & ' + str(p99d) + ' & ' + str(maxd) + ' \\\\' + '\n')
+        f.write('\hline' + '\n')
+        f.write('\end{tabular}' + '\n')
+    
+    if output_file.split('.')[1] == 'csv':
+        convert_latexTab_to_csv(temp_file, output_file)
+        os.remove(temp_file)
+    else:
+        os.rename(temp_file, output_file)
+    
+    return

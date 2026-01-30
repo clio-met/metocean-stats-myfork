@@ -492,11 +492,15 @@ def plot_directional_stats(data: pd.DataFrame, var: str, step_var: float, var_di
 
     Example:
         plot_directional_stats(data, 'hs', 0.1, 'Pdir', title='Directional Wave Statistics', output_file='directional_hs_stats.png')
-    """    
+    """
+    cmap = plt.get_cmap("viridis")
+    colors = cmap(np.linspace(0,1,len(show)))
     fig, ax = plt.subplots()
     cumulative_percentage = tables.table_directional_non_exceedance(data,var,step_var,var_dir)
+    a=0
     for i in show:
-        cumulative_percentage.loc[i][:-1].plot(marker = 'o')
+        cumulative_percentage.loc[i][:-1].plot(marker = 'o',color=colors[a])
+        a=a+1
     #cumulative_percentage.loc['Maximum'][:-1].plot(marker = 'o')
     #cumulative_percentage.loc['P99'][:-1].plot(marker = 'o')    
     #cumulative_percentage.loc['Mean'][:-1].plot(marker = 'o')

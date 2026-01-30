@@ -298,7 +298,7 @@ def table_daily_percentile(data,
         daily_table.index.names = ["Day"]
         return daily_table
 
-def table_monthly_min_mean_max(data, var,output_file='montly_min_mean_max.txt') :  
+def table_monthly_min_mean_max(data, var,output_file='montly_min_mean_max.txt'):  
     """
     The function is written by dung-manh-nguyen and KonstantinChri.
     It calculates monthly min, mean, max based on monthly maxima. 
@@ -343,6 +343,47 @@ def table_monthly_min_mean_max(data, var,output_file='montly_min_mean_max.txt') 
         os.rename(temp_file, output_file)
 
     return
+
+
+def table_monthly_stats(data: pd.DataFrame,
+                        var:str,
+                        show=["min","25%","max"],
+                        output_file=None):
+    """
+    Table of monthly statistics of a variable from a DataFrame.
+
+    Parameters:
+        data (pd.DataFrame): The DataFrame containing the data.
+        var (str): The name of the variable to plot.
+        show (list[str]): List of percentiles/statistics to include. Options are: "min","mean","0%","1%",...,"100%","max".
+        output_file (str, optional): File path to save the dataframe (output.csv). Default is None.
+
+    Returns:
+        pd.DataFrame
+
+    Example:
+        plot_monthly_stats(df, 'temperature', show=["min","mean","99%"], fill_between = ["25%","75%"],
+
+    """
+    percentiles_yr = data[var].describe(percentiles=np.arange(0,1,0.01))
+    percentiles_mn = data[var].groupby(data[var].index.month).describe(percentiles=np.arange(0,1,0.01))
+    percentiles_mn.loc[len(percentiles_mn)+1] = percentiles_yr
+    
+    show = _percentile_str_to_pd_format(show)
+
+    labels= ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Annual']
+
+    df = pd.DataFrame()
+    for i,v in enumerate(show):
+        df[v]=percentiles_mn[v].to_numpy()
+
+    df['Months'] = labels
+    df = df.set_index('Months')
+   
+    if output_file:
+        df.to_csv(output_file)
+   
+    return df
 
 
 def table_monthly_non_exceedance(data: pd.DataFrame, var: str, step_var: float, output_file: str = None):
@@ -681,6 +722,37 @@ def table_profile_stats(data: pd.DataFrame, var: str, z=[10, 20, 30], var_dir=No
 
     return df
 
+
+def table_profile_stats_v2(data: pd.DataFrame, var: str, z=[10, 20, 30], var_dir=None, unit='', output_file='table_profile_stats.csv'):
+    # Initialize an empty list to store the results
+    results = []
+    
+    # Iterate over each height in z
+    if var_dir is None:
+        for i in range(len(z)):
+            results.append([z[i], np.round(data[var[i]].mean(),2), 
+                            data[var[i]].quantile(0.05), data[var[i]].quantile(0.10),
+                            data[var[i]].quantile(0.50), data[var[i]].quantile(0.90),
+                            data[var[i]].quantile(0.95), data[var[i]].quantile(0.99),
+                            data[var[i]].max(), str(data[var[i]].idxmax())   ])
+        results.insert(0,['[m]', unit, unit, unit, unit, unit, unit, unit, unit, 'YYYY-MM-DD hh:mm:ss'])
+        df = pd.DataFrame(results, columns=['z', 'Mean', 'P5', 'P10', 'P50', 'P90', 'P95', 'P99', 'Max', 'Max Speed Event'])
+
+    else:
+        for i in range(len(z)):
+            results.append([z[i], np.round(data[var[i]].mean(),2), 
+                            data[var[i]].quantile(0.05), data[var[i]].quantile(0.10),
+                            data[var[i]].quantile(0.50), data[var[i]].quantile(0.90),
+                            data[var[i]].quantile(0.95), data[var[i]].quantile(0.99),
+                            data[var[i]].max(),data[var_dir[i]].loc[data[var[i]].idxmax()] ,  str(data[var[i]].idxmax())   ])   
+        results.insert(0,['[m]', unit, unit, unit, unit, unit, unit, unit, unit,'[°]' ,'YYYY-MM-DD hh:mm:ss'])
+        df = pd.DataFrame(results, columns=['z', 'Mean', 'P5', 'P10', 'P50', 'P90', 'P95', 'P99', 'Max','Dir. Max Event', 'Time Max Event'])
+     
+    # Save the DataFrame to a CSV file
+    if output_file:
+        df.to_csv(output_file, index=False)
+
+    return df
 
 
 def table_profile_monthly_stats(data: pd.DataFrame, 

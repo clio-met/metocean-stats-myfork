@@ -110,7 +110,7 @@ def monthly_var_rose(data,
             ax.bar(dic_direction[months[j]], dic_intensity[months[j]], normed=True, bins=bins, opening=0.99,edgecolor="white",cmap=cmap, nsector=nsector)
             ax.set_yticks(np.arange(5, max_perc+10, step=10))
             ax.set_yticklabels(np.arange(5, max_perc+10, step=10))
-            ax.set_legend(decimal_places=decimal_places,  title=units)
+            ax.set_legend(decimal_places=decimal_places, title=units)
             ax.set_title(months[j])
             size = 5
             ax.figure.set_size_inches(size, size)
@@ -134,6 +134,8 @@ def monthly_var_rose(data,
         # Save the figure
         if output_file is not None:
             plt.savefig(output_file, dpi=100, facecolor='white', bbox_inches='tight')
+        
+        plt.close()
 
     return fig
 
