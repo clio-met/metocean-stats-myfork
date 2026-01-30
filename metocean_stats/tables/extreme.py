@@ -12,6 +12,7 @@ def table_monthly_joint_distribution_Hs_Tp_param(
         data,
         var_hs='hs',
         var_tp='tp',
+        periods=[1,10,100],
         model = "lonowe",
         output_file='monthly_Hs_Tp_joint_param.csv'):
     """
@@ -25,6 +26,8 @@ def table_monthly_joint_distribution_Hs_Tp_param(
         Name of the data column representing Hs.
     var_tp : str
         The data column representing Tp
+    periods : list
+        List of the period(s) in years
     model : str, default lonowe
         The model to use:
 
@@ -52,7 +55,7 @@ def table_monthly_joint_distribution_Hs_Tp_param(
         if output_file != "": month_params.to_csv(output_file,float_format="%.2f")
         return month_params
 
-    periods = [1]
+    periods = periods
     params = []
     months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Year']
 

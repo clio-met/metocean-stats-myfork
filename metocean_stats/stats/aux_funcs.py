@@ -33,7 +33,7 @@ def Tp_correction(Tp):
     index = np.where(Tp>=3.2) # indexes of Tp
     r = np.random.uniform(low=-0.5, high=0.5, size=len(Tp[index])) 
     Tp[index]=np.round(3.244*np.exp(0.09525*(new_Tp[index]-1-r)),1)
-    return Tp 
+    return Tp
 
 
 

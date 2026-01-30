@@ -946,6 +946,7 @@ def plot_monthly_return_periods(data, var='hs', periods=[1, 10, 100, 10000],dist
     plt.legend()
     plt.grid()
     if output_file != "": plt.savefig(output_file)
+    plt.close()
     return fig
 
 
@@ -1252,11 +1253,11 @@ def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,retur
     colors = cmap(np.linspace(0, 1, n_lines))
     fig, ax = plt.subplots(figsize=(9,10))
     for d in range(len(lev)):
-        ax.plot(lev,cca[:,d],color=colors[d],label=str(int(lev[d]))+' m',linewidth=2)
-    ax.plot(lev,woca,label='Worst case',color='k',linewidth=3.5)
+        ax.plot(cca[:,d],lev,color=colors[d],label=str(int(lev[d]))+' m',linewidth=2)
+    ax.plot(woca,lev,label='Worst case',color='k',linewidth=3.5)
     ax.legend(loc='upper left',bbox_to_anchor=(1,1))
-    ax.set_ylabel(var+' ['+unit_var+']',fontsize=16)
-    ax.set_xlabel('Level ['+unit_lev+']',fontsize=16)
+    ax.set_xlabel(var+' ['+unit_var+']',fontsize=16)
+    ax.set_ylabel('Level ['+unit_lev+']',fontsize=16)
     if month is None:
         month_str=''
     else:
@@ -1270,9 +1271,13 @@ def plot_cca_profiles(data,var='current_speed_',month=None,percentile=None,retur
             ed_str=event_duration
         else:
             ed_str=f"{event_duration:.3f}"
-        ax.set_title('CCA profile - RP '+rp+' years'+month_str+', Duration '+ed_str+' h',fontsize=16)
+        ax.set_title('CCA profile - RP '+rp+' years'+month_str+', Duration '+ed_str+'h',fontsize=16)
     ax.tick_params(axis='both', labelsize= 16)
-    ax.set_xlim(lev[0],lev[-1])
+    if (lev[0]<lev[-1]):
+        ax.invert_yaxis()
+        ax.set_ylim(lev[-1],lev[0])
+    else:
+        ax.set_ylim(lev[0],lev[-1])
     plt.grid(color='lightgray',linestyle=':')
     plt.tight_layout()
     if output_file != "": plt.savefig(output_file,dpi=250,facecolor='white',bbox_inches='tight')
