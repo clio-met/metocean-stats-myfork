@@ -44,14 +44,14 @@ def scatter_diagram(data: pd.DataFrame, var1: str, step_var1: float, var2: str, 
     lower_bin_2 = bins_var2[0] - step_var2
 
     rows = []
-    rows.append(f'{lower_bin_1:04.1f}-{bins_var1[0]:04.1f} | {sumrows[0]:04.2f}%')
+    rows.append(f'{lower_bin_1:.2f}-{bins_var1[0]:.2f} | {sumrows[0]:.2f}%')
     for i in range(len(bins_var1)-1):
-        rows.append(f'{bins_var1[i]:04.1f}-{bins_var1[i+1]:04.1f} | {sumrows[i+1]:04.2f}%')
+        rows.append(f'{bins_var1[i]:4.2f}-{bins_var1[i+1]:4.2f} | {sumrows[i+1]:4.2f}%')
 
     cols = []
-    cols.append(f'{int(lower_bin_2)}-{int(bins_var2[0])} | {sumcols[0]:04.2f}%')
+    cols.append(f'{int(lower_bin_2)}-{int(bins_var2[0])} | {sumcols[0]:4.2f}%')
     for i in range(len(bins_var2)-1):
-        cols.append(f'{int(bins_var2[i])}-{int(bins_var2[i+1])} | {sumcols[i+1]:04.2f}%')
+        cols.append(f'{int(bins_var2[i])}-{int(bins_var2[i+1])} | {sumcols[i+1]:4.2f}%')
 
     #breakpoint()
     #cols.insert(0,var1+' / '+var2 )
