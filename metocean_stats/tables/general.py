@@ -313,7 +313,7 @@ def table_monthly_min_mean_max(data, var,output_file='montly_min_mean_max.txt'):
     for i in range(len(months)) : 
         months[i] = months[i][:3] # get the three first letters 
     
-    monthly_max = var.resample('M').max() # max in every month, all months 
+    monthly_max = var.resample('ME').max() # max in every month, all months 
     minimum = monthly_max.groupby(monthly_max.index.month).min() # min, sort by month
     mean = monthly_max.groupby(monthly_max.index.month).mean() # mean, sort by month
     maximum = monthly_max.groupby(monthly_max.index.month).max() # max, sort by month
@@ -326,7 +326,7 @@ def table_monthly_min_mean_max(data, var,output_file='montly_min_mean_max.txt'):
             f.write(months[i] + ' & ' + str(minimum.values[i]) + ' & ' + str(round(mean.values[i],1)) + ' & ' + str(maximum.values[i]) + ' \\\\' + '\n')
         
         ## annual row 
-        annual_max = var.resample('Y').max()
+        annual_max = var.resample('YE').max()
         min_year = annual_max.min()
         mean_year = annual_max.mean()
         max_year = annual_max.max()
@@ -676,6 +676,106 @@ def monthly_directional_percentiles(
     
     return monthly_tables
     
+
+def profile_directional_percentiles(
+        data: pd.DataFrame, 
+        var: str = "current_speed_",
+        var_dir: str = "current_direction_",
+        percentiles: list[float] = [10,90,95,99],
+        nsectors: int = 12):
+    
+    """
+    Calculates directional percentile tables for all vertical levels.
+    One table per percentile.
+
+    Parameters
+    ----------
+    data : DataFrame
+        the data
+    var : str
+        Prefix of variable magnitude column
+    var_dir : str
+        Prefix of variable direction column
+    percentiles : list[str]
+        A list of strings such as count, mean, std, min, max 
+        or any (integer) percentile from P0 to P100. 
+        percentiles = [] will return all columns.
+    nsectors : int
+        Number of directional sectors, typically 4, 8 or 16.
+    compass_point_names : bool
+        Replace degree range of sector (from, to) 
+        with a compass point system label such as N, NE, etc.
+        Only implemented for nsectors 4, 8 or 16.
+        
+    Returns
+    -------
+    tables : dict
+        A dictionary of profiles percentile tables.
+    """
+    # Define sector bins
+    bins = np.linspace(0, 360, nsectors+1)
+    dir_offset = (bins[1]-bins[0])/2
+
+    # Compass point labels if appropriate
+    labels = []
+    if nsectors == 2:
+        labels = ['N', 'S']
+    elif nsectors == 4:
+        labels = ['N', 'E', 'S', 'W']
+    elif nsectors == 8:
+        labels = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
+    elif nsectors == 12:
+        labels = ['N', 'NNE', 'ENE', 'E', 'ESE', 'SSE', 
+                  'S', 'SSW', 'WSW', 'W', 'WNW', 'NNW']
+    elif nsectors == 16:
+        labels = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 
+                  'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+    elif nsectors == 32:
+        labels = ['N', 'NbE', 'NNE', 'NEbN', 'NE', 'NEbE', 'ENE', 'EbN', 
+                  'E', 'EbS', 'ESE', 'SEbE', 'SE', 'SEbS', 'SSE', 'SbE', 
+                  'S', 'SbW', 'SSW', 'SWbS', 'SW', 'SWbW', 'WSW', 'WbS', 
+                  'W', 'WbN', 'WNW', 'NWbW', 'NW', 'NWbN', 'NNW', 'NbW']
+    omni_label = "Omni"
+
+    all_tables = {}
+
+    starts_with=var
+    cols_speed=[n for n in list(data.columns) if n.startswith(starts_with)]
+    depths_list=[c.split('_')[-1][0:-1] for c in cols_speed]
+    starts_with=var_dir
+    cols_dir=[n for n in list(data.columns) if n.startswith(starts_with)]
+
+    for i in range(len(percentiles)): # One table per percentile
+        data1=data
+        for c in range(len(cols_speed)):
+            if c==0:
+                arr=np.zeros((len(cols_speed),len(labels)+1))
+            # Add columns with direction bins
+            data1["_dir_bin"] = pd.cut((data1[cols_dir[c]]+dir_offset)%360, bins=bins, labels=labels, right=False)
+            data_dir_stats = data1[[cols_speed[c],"_dir_bin"]]
+            data_dir_stats = data_dir_stats.groupby("_dir_bin",observed=True)
+            data_dir_stats = data_dir_stats.quantile(percentiles[i]/100)[cols_speed[c]]
+            data_dir_stats.loc[omni_label] = data[cols_speed[c]].quantile(percentiles[i]/100)
+            data_dir_stats.index.name = None
+            arr[c,:]=data_dir_stats.to_numpy()
+        df_custom = pd.DataFrame(data=arr[::-1,:],
+                                columns=labels+['Omni'],
+                                index=depths_list[::-1])
+        del arr
+        dict_elem=f"P{percentiles[i]:.2f}"
+        all_tables[dict_elem]=df_custom
+        del df_custom,data1
+
+        # if output_file != "":
+        #     if "." in output_file:
+        #         fname = ".".join(output_file.split(".")[:-1])+m+".csv"
+        #     else:
+        #         fname = output_file+m+".csv"
+        #     data_dir_stats.to_csv(fname)
+    
+    return all_tables
+
+
 
 def table_monthly_weather_window(data: pd.DataFrame, var: str, threshold: float, window_size=12, timestep=3, output_file: str = None):
     # var should be a list of variables, and threshold should be a list of thresholds

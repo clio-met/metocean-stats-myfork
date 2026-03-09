@@ -14,7 +14,7 @@ def return_levels_pot(data, var, dist='Weibull_2P',
                       periods=[50, 100, 1000], 
                       threshold=None, r="48h"):
     """
-    Calulates return value estimates for different periods, fitting a 
+    Calculates return value estimates for different periods, fitting a 
     given distribution to threshold excess values of the data.  
     
     data (pd.DataFrame): dataframe containing the time series
@@ -46,8 +46,17 @@ def return_levels_pot(data, var, dist='Weibull_2P',
     length_data = extremes.shape[0]
     # in hours 
     time_step = yr_num*365.2422*24/length_data
-    # years is converted to K-th
-    return_periods = np.array(periods)*24*365.2422/time_step
+    period=periods
+    # Return periods in K-th element 
+    try:
+        for i in range(len(period)) :
+            if period[i] == 1 : 
+                period[i] = 1.5873
+    except:
+        if period == 1 : 
+            period = 1.5873
+    
+    return_periods = np.array(period)*24*365.2422/time_step
     
     if dist == 'Weibull_2P':
         shape, loc, scale = st.weibull_min.fit(extremes-threshold, floc=0)
@@ -541,13 +550,15 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
         #data = df.values
         data = df
     elif method == 'AM' : # annual maxima
-        annual_maxima = df.resample('Y').max() # get annual maximum
+        annual_maxima = df.resample('YS').max() # get annual maximum
         data = annual_maxima
     elif method == 'POT' : # Peak over threshold
         if threshold == 'default' :
-            annual_maxima = df.resample('Y').max() 
+            annual_maxima = df.resample('YS').max()
             threshold=annual_maxima.min()
         data = get_extremes(df, method="POT", threshold=threshold, r="48h")
+        print('POT threshold=',threshold)
+        data=data-threshold
     else:
         print('Please check the name of the method for filtering data')
     
@@ -598,10 +609,16 @@ def RVE_ALL(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull3P',
     elif distribution == 'Weibull3P_MOM' :
         shape, loc, scale = aux_funcs.Weibull_method_of_moment(data)
         value = st.weibull_min.isf(1/period, shape, loc, scale)
+    elif distribution == 'Pareto':
+        shape, loc, scale = st.genpareto.fit(data)
+        value = st.genpareto.isf(1/period, shape, loc, scale) + threshold
     else:
         print("Please check the distribution's name")    
-             
-    return shape, loc, scale, value
+    
+    if method=='POT':
+        return shape, loc, scale, threshold, value
+    else:
+        return shape, loc, scale, value
 
 
 
@@ -637,11 +654,11 @@ def RVE_ALL_old(dataframe,var='hs',periods=[1,10,100,1000],distribution='Weibull
     if method == 'default' : # all data 
         data = df.values
     elif method == 'AM' : # annual maxima
-        annual_maxima = df.resample('Y').max() # get annual maximum 
+        annual_maxima = df.resample('YE').max() # get annual maximum 
         data = annual_maxima
     elif method == 'POT' : # Peak over threshold 
         if threshold == 'default' :
-            annual_maxima = df.resample('Y').max() 
+            annual_maxima = df.resample('YE').max() 
             threshold=annual_maxima.min()
         data = get_extremes(df, method="POT", threshold=threshold, r="48h")
     else:

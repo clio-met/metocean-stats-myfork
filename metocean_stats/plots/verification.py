@@ -12,7 +12,7 @@ from ..tables.verification import *
 
 
 
-def plot_scatter(df,var1,var2,var1_units='m', var2_units='m',title=' ',regression_line='effective-variance',qqplot=True,density=True,output_file='scatter_plot.png'):
+def plot_scatter(df,var1,var2,bins=None,xlabel=None,ylabel=None,title=' ',regression_line='effective-variance',qqplot=True,density=True,log=True,output_file='scatter_plot.png'):
     """
     Plots a scatter plot with optional density, regression line, and QQ plot. 
     Calculates and displays statistical metrics on the plot.
@@ -21,39 +21,60 @@ def plot_scatter(df,var1,var2,var1_units='m', var2_units='m',title=' ',regressio
         df (DataFrame): Pandas DataFrame containing the data.
         var1 (str): Column name for the x-axis variable.
         var2 (str): Column name for the y-axis variable.
-        var1_units (str): Units for the x-axis variable. Default is 'm'.
-        var2_units (str): Units for the y-axis variable. Default is 'm'.
+        xlabel (str): x-axis label. Default is var1
+        ylabel (str): y-axis variable. Default is var2
         title (str): Title of the plot. Default is an empty string.
-        regression_line (str or bool): Type of regression line ('least-squares', 'mean-slope', 'effective-variance',None). Default is effective-variance.
+        regression_line (str or bool): Type of regression line ('least-squares', 'mean-slope', 'effective-variance', None). Default is effective-variance.
         qqplot (bool): Whether to include QQ plot. Default is True.
         density (bool): Whether to include density plot. Default is True.
+        log (bool): Logarithm for the colorbar
         output_file (str): Filename for saving the plot. Default is 'scatter_plot.png'.
     
     Returns:
         fig: The matplotlib figure object.
     """
+    from matplotlib.colors import LogNorm
+    import matplotlib.colors as colors
+
+    def truncate_colormap(cmap, minval=0.0, maxval=1.0, n=100):
+        new_cmap = colors.LinearSegmentedColormap.from_list(
+            'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+            cmap(np.linspace(minval, maxval, n)))
+        return new_cmap
+
+    cmap = plt.get_cmap('jet')
+    new_cmap = truncate_colormap(cmap, 0.1, 0.8)
+
 
     x=df[var1].values
     y=df[var2].values
+    if bins is None:
+        bins=50
+    else:
+        bins=bins
     fig, ax = plt.subplots()
     if density is False:
         ax.scatter(x,y,marker='.',s=10,c='g')
     else:
-        plt.hist2d(x, y,bins=50, cmap='hot',cmin=1)
-        plt.colorbar()
+        if log==True:
+            c=ax.hist2d(x, y, bins=bins, cmap=new_cmap, cmin=1, norm=LogNorm(), alpha=0.6)
+        else:
+            c=ax.hist2d(x, y, bins=bins, cmap='jet', cmin=1)
+        cbar = fig.colorbar(c[3])
+        cbar.ax.tick_params(labelsize=14)
+        cbar.set_label('Entries', size=14)
+
 
     dmin, dmax = np.min([x,y])*0.9, np.max([x,y])*1.05
     diag = np.linspace(dmin, dmax, 1000)
-    plt.plot(diag, diag, color='r', linestyle='--')
-    plt.gca().set_aspect('equal')
-    plt.xlim([0,dmax])
-    plt.ylim([0,dmax])
+    ax.plot(diag, diag, color='k', linestyle='--',linewidth=1, label='1:1')
+    #plt.gca().set_aspect('equal')
     
     if qqplot :    
-        percs = np.linspace(0,100,101)
+        percs = np.linspace(0,100,1001)
         qn_x = np.nanpercentile(x, percs)
         qn_y = np.nanpercentile(y, percs)    
-        ax.scatter(qn_x,qn_y,marker='.',s=80,c='b')
+        ax.scatter(qn_x,qn_y,marker='.',s=20,c='r',label='QQ')
 
     if regression_line == 'least-squares':
         slope=st.linregress(x,y).slope
@@ -76,8 +97,7 @@ def plot_scatter(df,var1,var2,var1_units='m', var2_units='m',title=' ',regressio
         else:
             cm0 = f"$y = {slope:.2f}x$"
     
-        plt.plot(x, slope * x + intercept, 'k--', label=cm0)
-        plt.legend(loc='best')
+        ax.plot(x, slope * x + intercept, 'b', label=cm0)
 
 
     rmse = np.sqrt(((y - x) ** 2).mean())
@@ -86,17 +106,42 @@ def plot_scatter(df,var1,var2,var1_units='m', var2_units='m',title=' ',regressio
     corr = np.corrcoef(y,x)[0][1]
     si = np.std(x-y)/np.mean(x)
 
-    plt.annotate('rmse = '+str(np.round(rmse,3))
-                 +'\nbias = '+str(np.round(bias,3))
-                 +'\nmae = '+str(np.round(mae,3))
-                 +'\ncorr = '+str(np.round(corr,3))
-                 +'\nsi = '+str(np.round(si,3)), xy=(dmin+1,0.6*(dmin+dmax)))
-    plt.xlabel(var1+'['+var1_units+']', fontsize=15)
-    plt.ylabel(var2+'['+var2_units+']', fontsize=15)
+    text='Entries: %1.0f'%(np.count_nonzero(~np.isnan(x)))
+    ax.annotate(text
+                 +'\nRMSE = '+str(np.round(rmse,3))
+                 +'\nBias = '+str(np.round(bias,3))
+                 +'\nMAE = '+str(np.round(mae,3))
+                 +'\nCorr = '+str(np.round(corr,3))
+                 +'\nSI = '+str(np.round(si,3)), #xy=(dmin+0.5,0.68*(dmin+dmax)),
+                 xy=(0.05,0.69),
+                 xycoords='axes fraction',fontsize=12,
+                 bbox = dict(fc="white", alpha=0.8, lw=0))
+    # ax.annotate('Fixed Annotation',
+    #         xy=(0.5, 0.5),      # Annotation point (can be same as text point)
+    #         xycoords='figure fraction', # Use figure coordinates for xy
+    #         xytext=(0.5, 0.5),  # Text position
+    #         textcoords='figure fraction', # Use figure coordinates for text
+    #         horizontalalignment='center',
+    #         verticalalignment='center')
+    if xlabel is None:
+        ax.set_xlabel(var1, fontsize=15)
+    else:
+        ax.set_xlabel(xlabel, fontsize=15)
+    if ylabel is None:
+        ax.set_ylabel(var2, fontsize=15)
+    else:
+        ax.set_ylabel(ylabel, fontsize=15)
 
-    plt.title("$"+(title +', N=%1.0f'%(np.count_nonzero(~np.isnan(x))))+"$",fontsize=15)
-    plt.grid()
-    if output_file != "": plt.savefig(output_file)
+    ax.legend(loc='best',fontsize=12)
+
+    ax.tick_params(axis='both', which='major', labelsize=13)
+    #plt.title("$"+(title +', N=%1.0f'%(np.count_nonzero(~np.isnan(x))))+"$",fontsize=15)
+    ax.grid()
+    ax.set_xlim(np.min(diag),dmax)
+    ax.set_ylim(np.min(diag),dmax)
+    print('np.min(diag)=',np.min(diag),'dmax=',dmax)
+    #ax.set_aspect('equal')
+    if output_file != "": plt.savefig(output_file,bbox_inches='tight')
     return fig
 
 

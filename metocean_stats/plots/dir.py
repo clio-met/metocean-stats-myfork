@@ -61,7 +61,7 @@ def var_rose(data,
 
     elif method == 'monthly':
         fig = monthly_var_rose(data=data,var_dir=direction,var=intensity,bins=bins_range,max_perc=max_perc,
-                               decimal_places=decimal_places,units=units,single_figure=single_figure,output_file=output_file)
+                               decimal_places=decimal_places,units=units,single_figure=single_figure,output_file=output_file,nsector=nsector)
     
     plt.close()
     return fig
@@ -140,3 +140,47 @@ def monthly_var_rose(data,
     return fig
 
 
+def var_rose_withbins(data, 
+             var_dir,
+             var,
+             bins=[],
+             method='overall',
+             max_perc=40,
+             decimal_places=1, 
+             units='m/s',
+             single_figure=True, 
+             output_file='rose.png', 
+             nsector=16, 
+             cmap=plt.get_cmap("viridis")):
+    
+    direction = var_dir
+    intensity = var
+
+    direction2 = data[direction]
+    intensity2 = data[intensity]
+    size = 5
+    if len(bins)==0:
+        bins_range = np.array([0, np.percentile(intensity2,40),
+                   np.percentile(intensity2,60),
+                   np.percentile(intensity2,80),
+                   np.percentile(intensity2,99)])
+    else:
+        bins_range=bins
+
+    if method == 'overall':
+        fig = plt.figure(figsize = (8,8))
+        ax = fig.add_subplot(111, projection="windrose")
+        ax.bar(direction2, intensity2, normed=True, bins=bins_range, opening=0.99,edgecolor="white",linewidth=0.5,cmap=cmap, nsector=nsector)
+        ax.set_yticks(np.arange(5, max_perc+10, step=10))
+        ax.set_yticklabels(np.arange(5, max_perc+10, step=10))
+        ax.set_legend(decimal_places=decimal_places,  title=units)
+        ax.set_title('Overall')
+        ax.figure.set_size_inches(size, size)
+        plt.savefig(output_file,dpi=100,facecolor='white',bbox_inches='tight')
+
+    elif method == 'monthly':
+        fig = monthly_var_rose(data=data,var_dir=direction,var=intensity,bins=bins_range,max_perc=max_perc,
+                               decimal_places=decimal_places,units=units,single_figure=single_figure,output_file=output_file,nsector=nsector)
+    
+    plt.close()
+    return fig
